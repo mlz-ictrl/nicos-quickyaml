@@ -23,13 +23,16 @@
 
 #include <Python.h>
 #include <structmember.h>
+#include <numpy/arrayobject.h>
 
 #if PY_MAJOR_VERSION >= 3
 #define BYTES_FMT "y"
 #define TO_UNICODE PyObject_Str
+#define TO_INT PyNumber_Long
 #else
 #define BYTES_FMT "s"
 #define TO_UNICODE PyObject_Unicode
+#define TO_INT PyNumber_Int
 #endif
 
 #define bool  int
@@ -577,7 +580,8 @@ dump_dict(PyObject *obj, PyObject *write, dumpdata *data, bool map_value)
         /* Write the separator. We try to be smart and not emit a trailing
            space after the colon if we know the value will start on a new line. */
         if ((value_is_list && PyList_GET_SIZE(value) > 0) ||
-            (PyObject_IsInstance(value, (PyObject *)&PyDict_Type) && PyDict_Size(value) > 0))
+            (PyObject_IsInstance(value, (PyObject *)&PyDict_Type) && PyDict_Size(value) > 0) ||
+            (PyArray_Check(value) && PyArray_NDIM(value) > 1))
         {
             if (!write_literal(write, ":"))
                 goto exit;
@@ -618,6 +622,124 @@ dump_dict(PyObject *obj, PyObject *write, dumpdata *data, bool map_value)
     return success;
 }
 
+/* Dump the innermost slice of a ndarray.
+
+   The most efficient way to do this is to create a tuple of primitive types
+   and use the normal flowseq code.
+*/
+static bool
+dump_numpy_inner(PyArrayObject *obj, PyObject *write, dumpdata *data, npy_intp len,
+                 PyObject *(*converter)(PyObject *))
+{
+    bool success = FALSE;
+    PyObject *result = PyTuple_New(len);
+    if (!result)
+        return FALSE;
+    for (npy_intp i = 0; i < len; ++i) {
+        PyObject *converted;
+        PyObject *item = PySequence_GetItem((PyObject *)obj, i);
+        if (!item) {
+            Py_DECREF(result);
+            return FALSE;
+        }
+        if (!(converted = converter(item))) {
+            Py_DECREF(item);
+            Py_DECREF(result);
+            return FALSE;
+        }
+        Py_DECREF(item);
+        PyTuple_SET_ITEM(result, i, converted);
+    }
+    success = dump_flowseq(result, write, data);
+    Py_DECREF(result);
+    return success;
+}
+
+/* Dump numpy array directly: we dump every dimension but the last as a
+   mapping with indices as keys, and the last dimension as a flow sequence.
+
+   Only numeric types are supported.
+*/
+static bool
+dump_numpy_array(PyArrayObject *obj, PyObject *write, dumpdata *data, bool map_value)
+{
+    char buffer[255];
+    char index[32];
+    int ndim = PyArray_NDIM(obj);
+    npy_intp len = PyArray_DIM(obj, 0);
+
+    if (ndim == 1) {
+        if (PyArray_ISINTEGER(obj)) {
+            return dump_numpy_inner(obj, write, data, len, TO_INT);
+        } else if (PyArray_ISFLOAT(obj)) {
+            return dump_numpy_inner(obj, write, data, len, PyNumber_Float);
+        } else {
+            PyErr_SetString(PyExc_ValueError, "only integer and float arrays "
+                            "can be dumped");
+            return FALSE;
+        }
+    }
+
+    if (map_value) {
+        /* In map values, we need to start on a new line. */
+        if (!write_literal(write, "\n"))
+            return FALSE;
+        data->curcol = 0;
+    }
+
+    for (npy_intp i = 0; i < len; ++i) {
+        PyObject *slice = PySequence_GetItem((PyObject *)obj, i);
+        if (!slice)
+            return FALSE;
+
+        /* Create string with leading indentation. */
+        if (!map_value && i == 0) {
+            /* In the first item, we don't need to add indentation. */
+            buffer[0] = '\0';
+        } else if (i <= 1) {
+            /* In subsequent lines, we add indentation. */
+            make_indent(buffer, data->curindent);
+        }
+
+        /* Write it out. */
+        if (!write_literal(write, buffer)) {
+            Py_DECREF(slice);
+            return FALSE;
+        }
+        data->curcol += strlen(buffer);
+
+        /* Write the index. */
+        if (ndim == 2)
+            snprintf(index, 31, "%" NPY_INTP_FMT ": ", i);
+        else
+            snprintf(index, 31, "%" NPY_INTP_FMT ":", i);
+        if (!write_literal(write, index)) {
+            Py_DECREF(slice);
+            return FALSE;
+        }
+        data->curcol += strlen(index);
+
+        /* Special case: no additional indent for lists inside dicts. */
+        data->curindent += data->indentwidth;
+        /* Write the value. */
+        if (!dump_numpy_array((PyArrayObject *)slice, write, data, TRUE)) {
+            Py_DECREF(slice);
+            return FALSE;
+        }
+        Py_DECREF(slice);
+        data->curindent -= data->indentwidth;
+
+        /* If the value itself didn't start a new line, do it here. */
+        if (data->curcol != 0) {
+            if (!write_literal(write, "\n"))
+                return FALSE;
+            data->curcol = 0;
+        }
+    }
+
+    return TRUE;
+}
+
 /* Main dispatcher for dumping. */
 static bool
 dispatch_dump(PyObject *obj, PyObject *write, dumpdata *data, bool inline_only, bool map_value)
@@ -654,6 +776,8 @@ dispatch_dump(PyObject *obj, PyObject *write, dumpdata *data, bool inline_only, 
         if (inline_only)
             goto disallow;
         success = dump_dict(obj, write, data, map_value);
+    } else if (PyArray_Check(obj)) {
+        success = dump_numpy_array((PyArrayObject *)obj, write, data, map_value);
     } else if (data->callback) {
         /* If we have a callback, try to call it. */
         PyObject *dumped = PyObject_CallFunctionObjArgs(data->callback, obj, NULL);
@@ -861,7 +985,8 @@ PyInit_quickyaml(void)
 
     if (!init_inner(module))
         return NULL;
-    
+
+    import_array();
     return module;
 }
 #else
@@ -873,5 +998,6 @@ initquickyaml(void)
     if (!module)
         return;
     init_inner(module);
+    import_array();
 }
 #endif

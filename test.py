@@ -30,6 +30,7 @@ import glob
 import random
 import collections
 
+import numpy
 import yaml
 from nose.tools import assert_raises
 
@@ -81,6 +82,16 @@ def test_flowlist():
     flist = quickyaml.flowlist([0] * 8)
     assert dumps({'a': flist}, width=10) == \
         b'a: [0, 0, 0,\n    0, 0, 0,\n    0, 0]\n'
+
+
+def test_numpy():
+    arr = numpy.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+    assert dumps(arr, indent=2) == \
+        b'0:\n  0: [1, 2]\n  1: [3, 4]\n1:\n  0: [5, 6]\n  1: [7, 8]\n'
+    arr = numpy.array([[0.0, float('nan')], [float('inf'), float('-inf')]])
+    assert dumps({'counts': arr}, indent=2) == \
+        b'counts:\n  0: [0.0, .nan]\n  1: [.inf, -.inf]\n'
+    assert_raises(ValueError, dumps, numpy.array(["a"]))
 
 
 def test_callback():

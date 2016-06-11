@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #  -*- coding: utf-8 -*-
 
-from setuptools import setup, Extension
+from numpy.distutils.core import setup, Extension
 
 setup(
     name='nicos-quickyaml',

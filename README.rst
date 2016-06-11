@@ -7,7 +7,7 @@ This is a fast dumper for a subset of YAML that NICOS uses for writing data file
 Prerequisites
 -------------
 
-The module requires only Python (2.7 or 3.4+) for now.
+The module requires Python (2.7 or 3.4+) and numpy (1.6+).
 The test suite requires nose for running, PyYAML for verification.
 
 
