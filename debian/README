@@ -1,0 +1,6 @@
+The Debian Package nicos-quickyaml
+----------------------------------
+
+Fast dumper for a small subset of YAML that NICOS uses for dat files.
+
+ -- Georg Brandl <g.brandl@fz-juelich.de>  Fri, 10 Jun 2016 18:00:00 +0200
