@@ -25,6 +25,7 @@
 """Test suite for the quickyaml dumper."""
 
 import io
+import os
 import sys
 import glob
 import random
@@ -39,6 +40,8 @@ sys.path[0:0] = glob.glob('build/lib.*-%s*' % sys.version[:3])
 
 import quickyaml
 
+FUZZ_TESTS = int(os.environ.get('FUZZ_TESTS', '1000'))
+
 
 def dumps(obj, **kwds):
     fp = io.BytesIO()
@@ -46,7 +49,7 @@ def dumps(obj, **kwds):
     return fp.getvalue()
 
 
-def test_basic():
+def test_primitive():
     assert dumps(None) == b'null\n'
     assert dumps(True) == b'true\n'
     assert dumps(False) == b'false\n'
@@ -55,6 +58,9 @@ def test_basic():
     assert dumps(float('inf')) == b'.inf\n'
     assert dumps(float('-inf')) == b'-.inf\n'
     assert dumps(float('nan')) == b'.nan\n'
+
+
+def test_strings():
     assert dumps("abc") == b'abc\n'
     assert dumps("+abc") == b'"+abc"\n'
     assert dumps("\\") == b'"\\\\"\n'
@@ -92,6 +98,13 @@ def test_numpy():
     assert dumps({'counts': arr}, indent=2) == \
         b'counts:\n  0: [0.0, .nan]\n  1: [.inf, -.inf]\n'
     assert_raises(ValueError, dumps, numpy.array(["a"]))
+    arr = numpy.zeros((4, 4, 4, 4, 4)).astype(int)
+    res = [0, 0, 0, 0]
+    for dim in range(4):
+        res = dict((i, res) for i in range(4))
+    assert yaml.load(dumps(arr)) == res
+    empty_dim = numpy.array([[], []])
+    assert yaml.load(dumps(empty_dim)) == {0: [], 1: []}
 
 
 def test_callback():
@@ -101,7 +114,9 @@ def test_callback():
         raise TypeError("uh oh")
 
     assert dumps({'a': (1, 2, 3)}, callback=cb) == b'a: (...)\n'
+    # callback raised
     assert_raises(TypeError, dumps, {'a': Ellipsis}, callback=cb)
+    # no callback, unsupported type
     assert_raises(ValueError, dumps, {'a': Ellipsis})
 
 
@@ -119,12 +134,30 @@ def test_fuzz_structure():
             return quickyaml.flowlist(generate_structure(0) for _ in range(n))
         elif dis < 0.6:
             return dict((i, generate_structure(depth - 1)) for i in range(n))
-        elif dis < 0.8:
+        elif dis < 0.7:
             return n
+        elif dis < 0.75:
+            return float(n)
+        elif dis < 0.78:
+            return float('inf')
+        elif dis < 0.79:
+            return float('-inf')
+        elif dis < 0.8:
+            return None
+        elif dis < 0.82:
+            return True if n % 2 == 0 else False
+        elif dis < 0.9:
+            return ''.join(chr_func(random.randint(0, 0xff))
+                           for x in range(random.randint(0, 100)))
         else:
             return ''.join(chr_func(random.randint(0, 0xd7ff))
                            for x in range(random.randint(0, 100)))
 
-    for i in range(1000):
+    def check(structure):
+        roundtripped = yaml.load(dumps(structure).decode('utf-8'))
+        assert roundtripped == structure, \
+            '\nGenerated: %r\nRoundtripped: %r' % (structure, roundtripped)
+
+    for i in range(FUZZ_TESTS):
         structure = generate_structure(5)
-        assert yaml.load(dumps(structure).decode('utf-8')) == structure
+        yield check, structure

@@ -14,10 +14,11 @@ The test suite requires nose for running, PyYAML for verification.
 Usage
 -----
 
+Install with ``setup.py`` as usual.
+
 Basic usage::
 
     import quickyaml
-
     quickyaml.Dumper(**kwargs).dump(object, stream)
 
 To dump lists as flowing sequences, use the ``quickyaml.flowlist`` type, which
@@ -30,3 +31,9 @@ Dumper keyword arguments:
 * ``callback`` - a callable that is called for objects of unsupported types:
   it takes the object as an argument and must return a bytes object or raise
   an exception
+
+
+Tests
+-----
+
+Run tests with ``nosetests`` after ``setup.py build``.
