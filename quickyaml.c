@@ -277,7 +277,8 @@ write_object(PyObject *write, PyObject *str)
 static void
 make_indent(char *buffer, int n)
 {
-    for (int j = 0; j < n; ++j)
+    int j;
+    for (j = 0; j < n; ++j)
         *buffer++ = ' ';
     *buffer = '\0';
 }
@@ -412,7 +413,7 @@ dump_seq(PyObject *obj, PyObject *write, dumpdata *data, bool map_value)
 {
     bool success = FALSE;
     char buffer[255];
-    Py_ssize_t len;
+    Py_ssize_t len, i;
 
     /* Convert to "fast sequence" and determine the length. */
     PyObject *seq = PySequence_Fast(obj, "");
@@ -434,7 +435,7 @@ dump_seq(PyObject *obj, PyObject *write, dumpdata *data, bool map_value)
         data->curcol = 0;
     }
 
-    for (Py_ssize_t i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         PyObject *element = PySequence_Fast_GET_ITEM(seq, i);
         /* Create string with leading indentation and the bullet point. */
         if (!map_value && i == 0) {
@@ -474,7 +475,7 @@ dump_flowseq(PyObject *obj, PyObject *write, dumpdata *data)
 {
     char buffer[255] = "";
     bool success = FALSE;
-    Py_ssize_t len;
+    Py_ssize_t len, i;
     int indent_to;
 
     /* Convert to "fast sequence" and determine the length. */
@@ -490,7 +491,7 @@ dump_flowseq(PyObject *obj, PyObject *write, dumpdata *data)
     /* This is what we indent to after a linebreak. */
     indent_to = data->curcol;
 
-    for (Py_ssize_t i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         PyObject *element = PySequence_Fast_GET_ITEM(seq, i);
         /* Write the item. */
         if (!dispatch_dump(element, write, data, TRUE, FALSE))
@@ -631,11 +632,12 @@ static bool
 dump_numpy_inner(PyArrayObject *obj, PyObject *write, dumpdata *data, npy_intp len,
                  PyObject *(*converter)(PyObject *))
 {
+    npy_intp i;
     bool success = FALSE;
     PyObject *result = PyTuple_New(len);
     if (!result)
         return FALSE;
-    for (npy_intp i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         PyObject *converted;
         PyObject *item = PySequence_GetItem((PyObject *)obj, i);
         if (!item) {
@@ -665,6 +667,7 @@ dump_numpy_array(PyArrayObject *obj, PyObject *write, dumpdata *data, bool map_v
 {
     char buffer[255];
     char index[32];
+    npy_intp i;
     int ndim = PyArray_NDIM(obj);
     npy_intp len = PyArray_DIM(obj, 0);
 
@@ -687,7 +690,7 @@ dump_numpy_array(PyArrayObject *obj, PyObject *write, dumpdata *data, bool map_v
         data->curcol = 0;
     }
 
-    for (npy_intp i = 0; i < len; ++i) {
+    for (i = 0; i < len; ++i) {
         PyObject *slice = PySequence_GetItem((PyObject *)obj, i);
         if (!slice)
             return FALSE;
