@@ -2,10 +2,11 @@
 #  -*- coding: utf-8 -*-
 
 from numpy.distutils.core import setup, Extension
+from gitversion import get_git_version
 
 setup(
     name='nicos-quickyaml',
-    version='1.0',
+    version=get_git_version().lstrip('v'),
     description='NICOS quick but restricted YAML dumper module',
     author='Georg Brandl',
     author_email='g.brandl@fz-juelich.de',
