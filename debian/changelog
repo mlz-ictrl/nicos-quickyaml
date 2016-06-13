@@ -1,3 +1,12 @@
+nicos-quickyaml (1.0.1) unstable; urgency=low
+
+  [ Georg Brandl ]
+  * Use C89 declarations for for loops.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Mon, 13 Jun 2016 10:56:48 +0200
+
 nicos-quickyaml (1.0.0) unstable; urgency=low
 
   * UNRELEASED
