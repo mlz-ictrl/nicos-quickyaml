@@ -1,3 +1,12 @@
+nicos-quickyaml (1.0.2) unstable; urgency=low
+
+  [ Georg Brandl ]
+  * Add git version machinery.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Mon, 13 Jun 2016 11:13:37 +0200
+
 nicos-quickyaml (1.0.1) unstable; urgency=low
 
   [ Georg Brandl ]
