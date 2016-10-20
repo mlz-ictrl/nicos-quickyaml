@@ -770,7 +770,8 @@ dispatch_dump(PyObject *obj, PyObject *write, dumpdata *data, bool inline_only, 
         success = dump_bytes(obj, write, data);
     } else if (type == &flowlist_type) {
         success = dump_flowseq(obj, write, data);
-    } else if (type == &PyList_Type) {
+    } else if (PyObject_IsInstance(obj, (PyObject *)&PyList_Type)) {
+        /* For dictionaries we allow subtypes to catch e.g. readonlylist. */
         if (inline_only)
             goto disallow;
         success = dump_seq(obj, write, data, map_value);
