@@ -39,6 +39,10 @@
 #define TRUE  1
 #define FALSE 0
 
+#define ARRAY_AS_SEQ 0
+#define ARRAY_AS_MAP 1
+
+
 /******************************************************************************/
 /* flowlist object */
 
@@ -288,6 +292,7 @@ make_indent(char *buffer, int n)
 
 /* This stores local settings during the dumping process. */
 typedef struct {
+    int array_handling;
     int indentwidth;
     int maxwidth;
     int curindent;
@@ -696,12 +701,24 @@ dump_numpy_array(PyArrayObject *obj, PyObject *write, dumpdata *data, bool map_v
             return FALSE;
 
         /* Create string with leading indentation. */
-        if (!map_value && i == 0) {
-            /* In the first item, we don't need to add indentation. */
-            buffer[0] = '\0';
-        } else if (i <= 1) {
-            /* In subsequent lines, we add indentation. */
-            make_indent(buffer, data->curindent);
+        if (data->array_handling == ARRAY_AS_SEQ) {
+            if (!map_value && i == 0) {
+                /* In the first item, we don't need to add indentation. */
+                buffer[0] = '-';
+                make_indent(&buffer[1], data->indentwidth - 1);
+            } else if (i <= 1) {
+                /* In subsequent lines, we add indentation and bullet point. */
+                make_indent(buffer, data->curindent + data->indentwidth);
+                buffer[data->curindent] = '-';
+            }
+        } else {
+            if (!map_value && i == 0) {
+                /* In the first item, we don't need to add indentation. */
+                buffer[0] = '\0';
+            } else if (i <= 1) {
+                /* In subsequent lines, we add indentation. */
+                make_indent(buffer, data->curindent);
+            }
         }
 
         /* Write it out. */
@@ -711,21 +728,24 @@ dump_numpy_array(PyArrayObject *obj, PyObject *write, dumpdata *data, bool map_v
         }
         data->curcol += strlen(buffer);
 
-        /* Write the index. */
-        if (ndim == 2)
-            snprintf(index, 31, "%" NPY_INTP_FMT ": ", i);
-        else
-            snprintf(index, 31, "%" NPY_INTP_FMT ":", i);
-        if (!write_literal(write, index)) {
-            Py_DECREF(slice);
-            return FALSE;
+        if (data->array_handling == ARRAY_AS_MAP) {
+            /* Write the index. */
+            if (ndim == 2)
+                snprintf(index, 31, "%" NPY_INTP_FMT ": ", i);
+            else
+                snprintf(index, 31, "%" NPY_INTP_FMT ":", i);
+            if (!write_literal(write, index)) {
+                Py_DECREF(slice);
+                return FALSE;
+            }
+            data->curcol += strlen(index);
         }
-        data->curcol += strlen(index);
 
-        /* Special case: no additional indent for lists inside dicts. */
         data->curindent += data->indentwidth;
+
         /* Write the value. */
-        if (!dump_numpy_array((PyArrayObject *)slice, write, data, TRUE)) {
+        if (!dump_numpy_array((PyArrayObject *)slice, write, data,
+                              data->array_handling == ARRAY_AS_MAP)) {
             Py_DECREF(slice);
             return FALSE;
         }
@@ -812,6 +832,7 @@ dispatch_dump(PyObject *obj, PyObject *write, dumpdata *data, bool inline_only, 
 
 typedef struct {
     PyObject_HEAD
+    int array_handling;
     int indentwidth;
     int maxwidth;
     PyObject *callback;
@@ -823,10 +844,12 @@ dumper_init(DumperObject *self, PyObject *args, PyObject *kwds)
 {
     int indentwidth = 4;
     int maxwidth = 120;
-    static char *kwlist[] = {"indent", "width", "callback", 0};
+    int array_handling = ARRAY_AS_SEQ;
+    static char *kwlist[] = {"array_handling", "indent", "width", "callback", 0};
     self->callback = NULL;
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iiO:Dumper", kwlist,
-                                     &indentwidth, &maxwidth, &self->callback))
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "i|iiO:Dumper", kwlist,
+                                     &array_handling, &indentwidth, &maxwidth,
+                                     &self->callback))
         return -1;
     Py_XINCREF(self->callback);
     if (indentwidth < 2 || indentwidth > 8) {
@@ -839,6 +862,7 @@ dumper_init(DumperObject *self, PyObject *args, PyObject *kwds)
     }
     self->indentwidth = indentwidth;
     self->maxwidth = maxwidth;
+    self->array_handling = array_handling;
     return 0;
 }
 
@@ -854,6 +878,7 @@ dumper_dump(DumperObject *self, PyObject *args)
 {
     PyObject *obj, *stream, *write;
     dumpdata data;
+    data.array_handling = self->array_handling;
     data.indentwidth = self->indentwidth;
     data.maxwidth = self->maxwidth;
     data.callback = self->callback;
@@ -962,6 +987,9 @@ init_inner(PyObject *module)
     PyModule_AddObject(module, "flowlist", (PyObject *)&flowlist_type);
     Py_INCREF((PyObject *)&DumperType);
     PyModule_AddObject(module, "Dumper", (PyObject *)&DumperType);
+
+    PyModule_AddObject(module, "ARRAY_AS_SEQ", PyLong_FromLong(ARRAY_AS_SEQ));
+    PyModule_AddObject(module, "ARRAY_AS_MAP", PyLong_FromLong(ARRAY_AS_MAP));
     return TRUE;
 }
 

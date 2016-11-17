@@ -45,6 +45,7 @@ FUZZ_TESTS = int(os.environ.get('FUZZ_TESTS', '1000'))
 
 def dumps(obj, **kwds):
     fp = io.BytesIO()
+    kwds.setdefault('array_handling', quickyaml.ARRAY_AS_SEQ)
     quickyaml.Dumper(**kwds).dump(obj, fp)
     return fp.getvalue()
 
@@ -90,21 +91,38 @@ def test_flowlist():
         b'a: [0, 0, 0,\n    0, 0, 0,\n    0, 0]\n'
 
 
-def test_numpy():
+def test_numpy_as_seq():
     arr = numpy.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
     assert dumps(arr, indent=2) == \
-        b'0:\n  0: [1, 2]\n  1: [3, 4]\n1:\n  0: [5, 6]\n  1: [7, 8]\n'
+        b'- - [1, 2]\n  - [3, 4]\n- - [5, 6]\n  - [7, 8]\n'
     arr = numpy.array([[0.0, float('nan')], [float('inf'), float('-inf')]])
     assert dumps({'counts': arr}, indent=2) == \
+        b'counts:\n  - [0.0, .nan]\n  - [.inf, -.inf]\n'
+    assert_raises(ValueError, dumps, numpy.array(["a"]))
+    arr = numpy.zeros((4, 4, 4, 4, 4)).astype(int)
+    assert yaml.load(dumps(arr)) == arr.tolist()
+    obj = {'c': numpy.zeros((4, 4, 4, 4, 4)).astype(int)}
+    assert yaml.load(dumps(obj)) == {'c': obj['c'].tolist()}
+    empty_dim = numpy.array([[], []])
+    assert yaml.load(dumps(empty_dim)) == [[], []]
+
+
+def test_numpy_as_map():
+    kw = {'array_handling': quickyaml.ARRAY_AS_MAP}
+    arr = numpy.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+    assert dumps(arr, indent=2, **kw) == \
+        b'0:\n  0: [1, 2]\n  1: [3, 4]\n1:\n  0: [5, 6]\n  1: [7, 8]\n'
+    arr = numpy.array([[0.0, float('nan')], [float('inf'), float('-inf')]])
+    assert dumps({'counts': arr}, indent=2, **kw) == \
         b'counts:\n  0: [0.0, .nan]\n  1: [.inf, -.inf]\n'
     assert_raises(ValueError, dumps, numpy.array(["a"]))
     arr = numpy.zeros((4, 4, 4, 4, 4)).astype(int)
     res = [0, 0, 0, 0]
     for dim in range(4):
         res = dict((i, res) for i in range(4))
-    assert yaml.load(dumps(arr)) == res
+    assert yaml.load(dumps(arr, **kw)) == res
     empty_dim = numpy.array([[], []])
-    assert yaml.load(dumps(empty_dim)) == {0: [], 1: []}
+    assert yaml.load(dumps(empty_dim, **kw)) == {0: [], 1: []}
 
 
 def test_callback():
