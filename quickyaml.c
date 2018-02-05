@@ -791,7 +791,11 @@ dispatch_dump(PyObject *obj, PyObject *write, dumpdata *data, bool inline_only, 
     } else if (type == &flowlist_type) {
         success = dump_flowseq(obj, write, data);
     } else if (PyObject_IsInstance(obj, (PyObject *)&PyList_Type)) {
-        /* For dictionaries we allow subtypes to catch e.g. readonlylist. */
+        /* For lists we allow subtypes to catch e.g. readonlylist. */
+        if (inline_only)
+            goto disallow;
+        success = dump_seq(obj, write, data, map_value);
+    } else if (PyObject_IsInstance(obj, (PyObject *)&PyTuple_Type)) {
         if (inline_only)
             goto disallow;
         success = dump_seq(obj, write, data, map_value);

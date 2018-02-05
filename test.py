@@ -75,6 +75,7 @@ def test_strings():
 
 def test_structure():
     assert dumps([1, 2, 3], indent=2) == b'- 1\n- 2\n- 3\n'
+    assert dumps((1, 2, 3), indent=2) == b'- 1\n- 2\n- 3\n'
     assert dumps({1: 2, 3: 4}) in (b'1: 2\n3: 4\n', b'3: 4\n1: 2\n')
 
 
@@ -127,11 +128,11 @@ def test_numpy_as_map():
 
 def test_callback():
     def cb(tup):
-        if isinstance(tup, tuple):
+        if isinstance(tup, set):
             return b'(...)'
         raise TypeError("uh oh")
 
-    assert dumps({'a': (1, 2, 3)}, callback=cb) == b'a: (...)\n'
+    assert dumps({'a': set((1, 2, 3))}, callback=cb) == b'a: (...)\n'
     # callback raised
     assert_raises(TypeError, dumps, {'a': Ellipsis}, callback=cb)
     # no callback, unsupported type
