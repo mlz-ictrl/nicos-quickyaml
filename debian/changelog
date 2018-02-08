@@ -1,3 +1,12 @@
+nicos-quickyaml (1.1.2) unstable; urgency=low
+
+  [ Georg Brandl ]
+  * debian: build-depend on git
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 08 Feb 2018 09:43:47 +0100
+
 nicos-quickyaml (1.1.1) unstable; urgency=low
 
   [ Georg Brandl ]
