@@ -1,3 +1,14 @@
+nicos-quickyaml (1.1.1) unstable; urgency=low
+
+  [ Georg Brandl ]
+  * Allow list subclasses.
+  * Support dumping numpy arrays as nested sequences. (Fixes: #3060)
+  * Support dumping tuples as sequences.
+
+  [ Jenkins ]
+
+ -- Jenkins <jenkins@debuild.taco.frm2>  Thu, 08 Feb 2018 09:40:23 +0100
+
 nicos-quickyaml (1.0.2) unstable; urgency=low
 
   [ Georg Brandl ]
