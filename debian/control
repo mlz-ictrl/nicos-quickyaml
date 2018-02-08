@@ -3,6 +3,7 @@ Section: misc
 Priority: extra
 Maintainer: Georg Brandl <g.brandl@fz-juelich.de>
 Build-Depends: debhelper (>= 9.0.0),
+ git,
  python (>= 2.7),
  python-dev,
  python-numpy
