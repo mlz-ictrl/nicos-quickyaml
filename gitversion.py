@@ -32,7 +32,7 @@ __all__ = ['get_version']
 
 RELEASE_VERSION_FILE = os.path.join(os.path.dirname(__file__),
                                     'RELEASE-VERSION')
-GIT_REPO = os.path.join(os.path.dirname(__file__), '..', '.git')
+GIT_REPO = os.path.join(os.path.dirname(__file__), '.git')
 
 
 def get_git_version(abbrev=4):
