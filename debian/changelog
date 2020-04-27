@@ -1,3 +1,9 @@
+nicos-quickyaml (1.1.6) unstable; urgency=medium
+
+  * switch to pybuild, build Python 2/3, proper package naming
+
+ -- Georg Brandl <jenkins@jenkinsng.admin.frm2.tum.de>  Mon, 27 Apr 2020 12:13:04 +0200
+
 nicos-quickyaml (1.1.5) unstable; urgency=low
 
   [ Georg Brandl ]
