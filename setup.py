@@ -4,7 +4,7 @@
 from gitversion import get_version
 version = get_version().lstrip('v')
 
-from numpy.distutils.core import setup, Extension
+from setuptools import setup, Extension
 
 setup(
     name='nicos-quickyaml',
@@ -13,4 +13,5 @@ setup(
     author='Georg Brandl',
     author_email='g.brandl@fz-juelich.de',
     ext_modules=[Extension('quickyaml', ['quickyaml.c'])],
+    requires=['numpy'],
 )
