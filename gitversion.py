@@ -1,8 +1,5 @@
 #  -*- coding: utf-8 -*-
 # *****************************************************************************
-# Marche - A server control daemon
-# Copyright (c) 2015-2019 by the authors, see LICENSE
-#
 # This program is free software; you can redistribute it and/or modify it under
 # the terms of the GNU General Public License as published by the Free Software
 # Foundation; either version 2 of the License, or (at your option) any later
@@ -26,7 +23,7 @@
 from __future__ import print_function
 
 import os.path
-from subprocess import Popen, PIPE
+from subprocess import PIPE, Popen
 
 __all__ = ['get_version']
 
@@ -35,13 +32,18 @@ RELEASE_VERSION_FILE = os.path.join(os.path.dirname(__file__),
 GIT_REPO = os.path.join(os.path.dirname(__file__), '.git')
 
 
+def translate_version(ver):
+    ver = ver.lstrip('v').rsplit('-', 2)
+    return '%s.post%s+%s' % tuple(ver) if len(ver) == 3 else ver[0]
+
+
 def get_git_version(abbrev=4):
     try:
         p = Popen(['git', '--git-dir=%s' % GIT_REPO,
                    'describe', '--abbrev=%d' % abbrev],
                   stdout=PIPE, stderr=PIPE)
         stdout, _stderr = p.communicate()
-        return stdout.strip().decode('utf-8', 'ignore')
+        return translate_version(stdout.strip().decode('utf-8', 'ignore'))
     except Exception:
         return None
 
