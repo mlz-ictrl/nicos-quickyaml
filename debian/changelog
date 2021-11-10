@@ -1,3 +1,15 @@
+nicos-quickyaml (1.2.0) focal; urgency=medium
+
+  [ Björn Pedersen ]
+  * Handle numpy dependency
+
+  [ Georg Brandl ]
+  * version: convert to proper PEP 440 version
+  * handle numpy build dependency using pyproject.toml
+  * debian: remove Python 2 build
+
+ -- Björn Pedersen <jenkins@jenkins01.admin.frm2.tum.de>  Wed, 10 Nov 2021 17:50:27 +0100
+
 nicos-quickyaml (1.1.6) unstable; urgency=medium
 
   * switch to pybuild, build Python 2/3, proper package naming
