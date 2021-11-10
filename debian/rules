@@ -13,8 +13,7 @@ export PYBUILD_NAME = nicos-quickyaml
 
 override_dh_install:
 	dh_install
-	dh_numpy
 	dh_numpy3
 
 %:
-	dh $@ --with python2,python3 --buildsystem=pybuild
+	dh $@ --with python3 --buildsystem=pybuild
