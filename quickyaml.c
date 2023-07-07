@@ -1,6 +1,6 @@
 /*******************************************************************************
- * NICOS, the Networked Instrument Control System of the FRM-II
- * Copyright (c) 2009-2016 by the NICOS contributors (see AUTHORS)
+ * YAML dumper for NICOS, the Networked Instrument Control System of the FRM-II
+ * Copyright (c) 2016-2023 by the NICOS contributors (see AUTHORS)
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License as published by the Free Software
@@ -25,15 +25,9 @@
 #include <structmember.h>
 #include <numpy/arrayobject.h>
 
-#if PY_MAJOR_VERSION >= 3
 #define BYTES_FMT "y"
 #define TO_UNICODE PyObject_Str
 #define TO_INT PyNumber_Long
-#else
-#define BYTES_FMT "s"
-#define TO_UNICODE PyObject_Unicode
-#define TO_INT PyNumber_Int
-#endif
 
 #define bool  int
 #define TRUE  1
@@ -123,14 +117,14 @@ static char *HEX = "0123456789abcdef";
    human readability and does not impact loading.
 */
 static bool
-needs_quoting(const Py_UNICODE *content, Py_ssize_t len)
+needs_quoting(PyObject *string, Py_ssize_t len)
 {
-    const Py_UNICODE *p;
-    const Py_UNICODE *end = content + len;
+    Py_ssize_t i;
+    Py_UCS4 buf[5];
     if (len == 0)
         return TRUE;
-    for (p = content; p < end; ++p) {
-        Py_UNICODE ch = *p;
+    for (i = 0; i < len; i++) {
+        Py_UCS4 ch = PyUnicode_ReadChar(string, i);
         /* Characters disallowed everywhere: */
         if (ch < 32 ||
             ch == '"' || ch == '\\' || ch == ',' || ch == '?' ||
@@ -139,79 +133,82 @@ needs_quoting(const Py_UNICODE *content, Py_ssize_t len)
             (ch >= 0x7f && ch <= 0x9f) || ch >= 0xfffe)
             return TRUE;
         /* Characters disallowed at the beginning: */
-        if (p == content && (ch == '&' || ch == '*' || ch == '!' ||
-                             ch == '|' || ch == '>' || ch == '\'' ||
-                             ch == '%' || ch == '@' || ch == '`' ||
-                             ch == '-' || ch == '+' || ch == ' ' ||
-                             ch == '=' || ch == '~' ||
-                             (ch >= '0' && ch <= '9')))
+        if (i == 0 && (ch == '&' || ch == '*' || ch == '!' ||
+                       ch == '|' || ch == '>' || ch == '\'' ||
+                       ch == '%' || ch == '@' || ch == '`' ||
+                       ch == '-' || ch == '+' || ch == ' ' ||
+                       ch == '=' || ch == '~' ||
+                       (ch >= '0' && ch <= '9')))
             return TRUE;
         /* Characters disallowed at the end: */
-        if (p == end - 1 && ch == ' ')
+        if (i == len - 1 && ch == ' ')
             return TRUE;
     }
     /* Words that would be null or booleans: */
-    p = content;
     if (len == 2) {
-        if (tolower(p[0]) == 'o' &&
-            tolower(p[1]) == 'n')
+        PyUnicode_AsUCS4(string, buf, 5, FALSE);
+        if (tolower(buf[0]) == 'o' &&
+            tolower(buf[1]) == 'n')
             return TRUE;
-        if (tolower(p[0]) == 'n' &&
-            tolower(p[1]) == 'o')
+        if (tolower(buf[0]) == 'n' &&
+            tolower(buf[1]) == 'o')
             return TRUE;
     } else if (len == 3) {
-        if (tolower(p[0]) == 'y' &&
-            tolower(p[1]) == 'e' &&
-            tolower(p[2]) == 's')
+        PyUnicode_AsUCS4(string, buf, 5, FALSE);
+        if (tolower(buf[0]) == 'y' &&
+            tolower(buf[1]) == 'e' &&
+            tolower(buf[2]) == 's')
             return TRUE;
-        if (tolower(p[0]) == 'o' &&
-            tolower(p[1]) == 'f' &&
-            tolower(p[2]) == 'f')
+        if (tolower(buf[0]) == 'o' &&
+            tolower(buf[1]) == 'f' &&
+            tolower(buf[2]) == 'f')
             return TRUE;
     } else if (len == 4) {
-        if (tolower(p[0]) == 't' &&
-            tolower(p[1]) == 'r' &&
-            tolower(p[2]) == 'u' &&
-            tolower(p[3]) == 'e')
+        PyUnicode_AsUCS4(string, buf, 5, FALSE);
+        if (tolower(buf[0]) == 't' &&
+            tolower(buf[1]) == 'r' &&
+            tolower(buf[2]) == 'u' &&
+            tolower(buf[3]) == 'e')
             return TRUE;
-        if (tolower(p[0]) == 'n' &&
-            tolower(p[1]) == 'u' &&
-            tolower(p[2]) == 'l' &&
-            tolower(p[3]) == 'l')
+        if (tolower(buf[0]) == 'n' &&
+            tolower(buf[1]) == 'u' &&
+            tolower(buf[2]) == 'l' &&
+            tolower(buf[3]) == 'l')
             return TRUE;
     } else if (len == 5) {
-        if (tolower(p[0]) == 'f' &&
-            tolower(p[1]) == 'a' &&
-            tolower(p[2]) == 'l' &&
-            tolower(p[3]) == 's' &&
-            tolower(p[4]) == 'e')
+        PyUnicode_AsUCS4(string, buf, 5, FALSE);
+        if (tolower(buf[0]) == 'f' &&
+            tolower(buf[1]) == 'a' &&
+            tolower(buf[2]) == 'l' &&
+            tolower(buf[3]) == 's' &&
+            tolower(buf[4]) == 'e')
             return TRUE;
     }
     return FALSE;
 }
 
-/* Quote and escape the given string (given by content and length) into a buffer
-   allocated with PyMem_Malloc, which must be freed with PyMem_Free.
+/* Quote and escape the given string (given by content and length) into a new
+   string object.
  */
-static Py_UNICODE *
-quote_string(const Py_UNICODE *content, Py_ssize_t len, Py_ssize_t *newlen)
+static PyObject *
+quote_string(PyObject *string, Py_ssize_t len)
 {
-    const Py_UNICODE *src;
+    Py_ssize_t i = 0;
     Py_ssize_t size = 2 * len + 3;
-    Py_UNICODE *dst, *buf_end;
-    Py_UNICODE *buffer = PyMem_Malloc(sizeof(Py_UNICODE) * size);
+    Py_UCS4 *dst, *buf_end;
+    Py_UCS4 *buffer = PyMem_Malloc(sizeof(Py_UCS4) * size);
     if (!buffer)
         return NULL;
     buf_end = buffer + size;
     dst = buffer;
     *dst++ = '"';
-    for (src = content; src < content + len; ++src) {
+    for (i = 0; i < len; i++) {
         if (buf_end - dst < 11) {
             /* Need to reallocate. */
-            Py_UNICODE *new_buffer;
+            Py_UCS4 *new_buffer;
             Py_ssize_t offset = dst - buffer;
             size *= 2;
-            new_buffer = PyMem_Realloc(buffer, sizeof(Py_UNICODE) * size);
+            new_buffer = PyMem_Realloc(buffer, sizeof(Py_UCS4) * size);
             if (!new_buffer) {
                 PyMem_Free(buffer);
                 return NULL;
@@ -220,7 +217,7 @@ quote_string(const Py_UNICODE *content, Py_ssize_t len, Py_ssize_t *newlen)
             buf_end = buffer + size;
             dst = buffer + offset;
         }
-        Py_UNICODE ch = *src;
+        Py_UCS4 ch = PyUnicode_ReadChar(string, i);
         if (ch == '\\') {
             *dst++ = '\\';
             *dst++ = '\\';
@@ -254,9 +251,7 @@ quote_string(const Py_UNICODE *content, Py_ssize_t len, Py_ssize_t *newlen)
         }
     }
     *dst++ = '"';
-    *dst = 0;
-    *newlen = dst - buffer;
-    return buffer;
+    return PyUnicode_FromKindAndData(PyUnicode_4BYTE_KIND, buffer, dst - buffer);
 }
 
 /* Write a single literal string to the output. */
@@ -370,24 +365,19 @@ static bool
 dump_unicode(PyObject *obj, PyObject *write, dumpdata *data)
 {
     bool success = FALSE;
-    Py_UNICODE *content;
     Py_ssize_t len;
     PyObject *encoded;
-    content = PyUnicode_AsUnicode(obj);
-    len = PyUnicode_GetSize(obj);
-    if (!content)
-        return FALSE;
+    len = PyUnicode_GetLength(obj);
     /* Let's see if we need to quote and escape the string. */
-    if (needs_quoting(content, len)) {
-        Py_ssize_t newlen = 0;
-        Py_UNICODE *buffer = quote_string(content, len, &newlen);
+    if (needs_quoting(obj, len)) {
+        PyObject *buffer = quote_string(obj, len);
         if (!buffer)
             return FALSE;
-        encoded = PyUnicode_EncodeUTF8(buffer, newlen, "replace");
-        data->curcol += newlen;
-        PyMem_Free(buffer);
+        encoded = PyUnicode_AsUTF8String(buffer);
+        data->curcol += PyUnicode_GetLength(buffer);
+        Py_DECREF(buffer);
     } else {
-        encoded = PyUnicode_EncodeUTF8(content, len, "replace");
+        encoded = PyUnicode_AsUTF8String(obj);
         data->curcol += len;
     }
     success = write_object(write, encoded);
@@ -778,10 +768,6 @@ dispatch_dump(PyObject *obj, PyObject *write, dumpdata *data, bool inline_only, 
         success = dump_bool(obj, write, data);
     } else if (type == &PyLong_Type) {
         success = dump_int(obj, write, data);
-#if PY_MAJOR_VERSION < 3
-    } else if (type == &PyInt_Type) {
-        success = dump_int(obj, write, data);
-#endif
     } else if (type == &PyFloat_Type) {
         success = dump_float(obj, write, data);
     } else if (type == &PyUnicode_Type) {
@@ -923,12 +909,7 @@ static PyMemberDef dumper_members[] = {
 };
 
 static PyTypeObject DumperType = {
-#if PY_MAJOR_VERSION >= 3
     PyVarObject_HEAD_INIT(NULL, 0)
-#else
-    PyObject_HEAD_INIT(NULL)
-    0,                                  /* ob_size */
-#endif
     "quickyaml.Dumper",                 /* tp_name */
     sizeof(DumperObject),               /* tp_basicsize */
     0,                                  /* tp_itemsize */
@@ -997,7 +978,6 @@ init_inner(PyObject *module)
     return TRUE;
 }
 
-#if PY_MAJOR_VERSION >= 3
 static struct PyModuleDef moduledef = {
     PyModuleDef_HEAD_INIT,
     "quickyaml",
@@ -1025,15 +1005,3 @@ PyInit_quickyaml(void)
     import_array();
     return module;
 }
-#else
-void
-initquickyaml(void)
-{
-    PyObject *module;
-    module = Py_InitModule("quickyaml", functions);
-    if (!module)
-        return;
-    init_inner(module);
-    import_array();
-}
-#endif
