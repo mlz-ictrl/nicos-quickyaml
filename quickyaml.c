@@ -36,6 +36,12 @@
 #define ARRAY_AS_SEQ 0
 #define ARRAY_AS_MAP 1
 
+#define UNICODE_LS 0x2028
+#define UNICODE_PS 0x2029
+#define UNICODE_NONCHAR_RESERVED 0xfffe
+#define CHR_DELETE 0x7f
+#define CHR_APP_PROGRAM_CMD 0x9f
+
 
 /******************************************************************************/
 /* flowlist object */
@@ -129,8 +135,9 @@ needs_quoting(PyObject *string, Py_ssize_t len)
         if (ch < 32 ||
             ch == '"' || ch == '\\' || ch == ',' || ch == '?' ||
             ch == '[' || ch == ']' || ch == '{' || ch == '}' ||
-            ch == ':' || ch == '#' || ch == 0x2028 || ch == 0x2029 ||
-            (ch >= 0x7f && ch <= 0x9f) || ch >= 0xfffe)
+            ch == ':' || ch == '#' || ch == UNICODE_LS || ch == UNICODE_PS ||
+            (ch >= CHR_DELETE && ch <= CHR_APP_PROGRAM_CMD) ||
+            ch >= UNICODE_NONCHAR_RESERVED)
             return TRUE;
         /* Characters disallowed at the beginning: */
         if (i == 0 && (ch == '&' || ch == '*' || ch == '!' ||
@@ -230,12 +237,13 @@ quote_string(PyObject *string, Py_ssize_t len)
         } else if (ch == '\t') {
             *dst++ = '\\';
             *dst++ = 't';
-        } else if (ch < 32 || (ch >= 0x7f && ch <= 0x9f)) {
+        } else if (ch < 32 || (ch >= CHR_DELETE && ch <= CHR_APP_PROGRAM_CMD)) {
             *dst++ = '\\';
             *dst++ = 'x';
             *dst++ = HEX[(ch & 0xf0) >> 4];
             *dst++ = HEX[ch & 0x0f];
-        } else if (ch == 0x2028 || ch == 0x2029 || ch >= 0xfffe) {
+        } else if (ch == UNICODE_LS || ch == UNICODE_PS ||
+                   ch >= UNICODE_NONCHAR_RESERVED) {
             *dst++ = '\\';
             *dst++ = 'U';
             *dst++ = HEX[(ch & 0xf0000000) >> 28];
