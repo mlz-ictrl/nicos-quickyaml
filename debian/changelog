@@ -1,3 +1,17 @@
+nicos-quickyaml (1.3.2) stable; urgency=medium
+
+  [ Christian Felder ]
+  * Introduce some CPP macros for special chars
+
+  [ Jens Krüger ]
+  * Allow numpy versions > 1.20 as well
+
+  [ Georg Brandl ]
+  * fix error-warning with newer compilers
+  * add release makefile
+
+ -- Christian Felder <jenkins@frm2.tum.de>  Thu, 24 Jul 2025 22:18:11 +0200
+
 nicos-quickyaml (1.3.0) stable; urgency=medium
 
   [ Georg Brandl ]
