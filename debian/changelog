@@ -1,4 +1,4 @@
-nicos-quickyaml (1.3.0) focal; urgency=medium
+nicos-quickyaml (1.3.0) stable; urgency=medium
 
   [ Georg Brandl ]
   * debian: fix email addresses in changelog
@@ -11,7 +11,7 @@ nicos-quickyaml (1.3.0) focal; urgency=medium
 
  -- Georg Brandl <jenkins@frm2.tum.de>  Fri, 07 Jul 2023 11:55:24 +0200
 
-nicos-quickyaml (1.2.0) focal; urgency=medium
+nicos-quickyaml (1.2.0) stable; urgency=medium
 
   [ Björn Pedersen ]
   * Handle numpy dependency

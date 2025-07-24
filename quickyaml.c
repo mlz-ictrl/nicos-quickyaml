@@ -585,7 +585,7 @@ dump_dict(PyObject *obj, PyObject *write, dumpdata *data, bool map_value)
            space after the colon if we know the value will start on a new line. */
         if ((value_is_list && PyList_GET_SIZE(value) > 0) ||
             (PyObject_IsInstance(value, (PyObject *)&PyDict_Type) && PyDict_Size(value) > 0) ||
-            (PyArray_Check(value) && PyArray_NDIM(value) > 1))
+            (PyArray_Check(value) && PyArray_NDIM((PyArrayObject *)value) > 1))
         {
             if (!write_literal(write, ":"))
                 goto exit;
